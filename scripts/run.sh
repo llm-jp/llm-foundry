@@ -28,4 +28,3 @@ function run() {
 }
 
 run $@
-tais

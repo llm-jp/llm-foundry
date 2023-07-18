@@ -4,7 +4,7 @@ source venv/bin/activate
 
 # Specify the IP address of the master node and an array of slave nodes
 master_node="10.2.76.52"
-slave_nodes=("10.2.76.51")  # Add more IPs as needed
+slave_nodes=("10.2.72.152")  # Add more IPs as needed
 
 function run_slave_node() {
     local world_size=16
@@ -39,3 +39,4 @@ function main() {
 }
 
 main
+
