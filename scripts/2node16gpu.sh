@@ -6,6 +6,34 @@ source venv/bin/activate
 master_node="10.2.76.52"
 slave_nodes=("10.2.72.152")  # Add more IPs as needed
 
+function kill_processes_on_port() {
+    local port=2221  # Replace with the port number you want to free
+    for node in $master_node "${slave_nodes[@]}"; do
+        ssh $node "
+            output=\$(lsof -i :$port)
+
+            echo \"\$output\" | while IFS= read -r line
+            do
+                pid=\$(echo \$line | awk '{ print \$2 }')
+
+                if [[ \$pid =~ ^[0-9]+$ ]]
+                then
+                    kill -9 \$pid
+                    echo \"Killed process \$pid\"
+                fi
+            done
+        "
+    done
+}
+
+
+function run_python_script() {
+    local script_path="/model/mosaicml/llm-foundry/scripts/clean_stream.py"  # Replace with the actual path to your Python script
+    for node in $master_node "${slave_nodes[@]}"; do
+        ssh $node "python $script_path"
+    done
+}
+
 function run_slave_node() {
     local world_size=16
     local master_addr=$master_node
@@ -32,6 +60,8 @@ function run_master_node() {
 }
 
 function main() {
+    kill_processes_on_port
+    run_python_script
     run_slave_node
     run_master_node
 
