@@ -13,7 +13,7 @@ function run() {
     local port=$4
     local params=$5
 
-    local training_script_args="$yaml_base_dir/mpt-13b-2node16gpu.yaml"
+    local training_script_args="$yaml_base_dir/mpt-7b-2node16gpu.yaml"
 
     composer \
         --verbose \

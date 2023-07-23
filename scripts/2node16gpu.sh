@@ -29,8 +29,9 @@ function kill_processes_on_port() {
 
 function run_python_script() {
     local script_path="/model/mosaicml/llm-foundry/scripts/clean_stream.py"  # Replace with the actual path to your Python script
+    local env_script_path="/model/mosaicml/llm-foundry/scripts/venv/bin/activate"  # Replace with the actual path to your environment script
     for node in $master_node "${slave_nodes[@]}"; do
-        ssh $node "python $script_path"
+        ssh $node "source $env_script_path && python $script_path"
     done
 }
 

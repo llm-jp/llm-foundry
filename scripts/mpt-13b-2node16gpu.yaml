@@ -2,7 +2,11 @@ data_local: /model/mosaicml/llm-foundry/scripts/my-copy-c4
 data_remote: # If blank, files must be present in data_local
 max_seq_len: 2048
 global_seed: 17
-
+device: mdx-a100-2node-16gpu
+attn_impl: triton #triton #flash #triton
+device_train_microbatch_size: 16
+sharding_strategy: FULL_SHARD #SHARD_GRAD_OP
+model_size: 13b
 # Run Name
 run_name: # If left blank, will be read from env var $RUN_NAME
 
@@ -17,7 +21,7 @@ model:
   max_seq_len: ${max_seq_len}
   vocab_size: 50368
   attn_config:
-    attn_impl: triton
+    attn_impl: ${attn_impl} 
 
 # Tokenizer
 tokenizer:
@@ -80,14 +84,13 @@ global_train_batch_size: 1024
 
 # System
 seed: ${global_seed}
-device_eval_batch_size: 8
-device_train_microbatch_size: 4
+device_eval_batch_size: 1
 # device_train_microbatch_size: auto
 precision: amp_bf16
 
 # FSDP
 fsdp_config:
-  sharding_strategy: FULL_SHARD
+  sharding_strategy: ${sharding_strategy}
   mixed_precision: PURE
   activation_checkpointing: true
   activation_checkpointing_reentrant: false
@@ -108,9 +111,9 @@ callbacks:
   runtime_estimator: {}
 
 loggers:
-  wandb:     
-    project: llm-mdx
-    name: mpt-13B-2node16gpu
+ wandb:   
+  project: llm-mdx
+  name: mpt-${data_local}-max_seq_len${max_seq_len}-${device}-${attn_impl}-device_train_microbatch_size${device_train_microbatch_size}-${sharding_strategy}-model_size${model_size}
 
 # Checkpoint to local filesystem or remote object store
 # save_interval: 5000ba
