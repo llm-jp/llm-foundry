@@ -1,147 +1,119 @@
-# Copyright 2022 MosaicML LLM Foundry authors
-# SPDX-License-Identifier: Apache-2.0
-
-"""Streaming dataset conversion scripts for json files."""
 from array import array
 from argparse import ArgumentParser, Namespace
 import gzip
 import os
-from typing import Dict, Iterable, Optional
+import re
+from typing import Dict, Iterable
 
 from streaming import MDSWriter
 from torch.utils.data import IterableDataset
-from tqdm import tqdm
 
 
 def parse_args() -> Namespace:
-    """Parse commandline arguments."""
-    parser = ArgumentParser(
-        description=
-        'Convert dataset into MDS format, optionally concatenating and tokenizing'
-    )
-    parser.add_argument('--path', type=str, required=True)
-    parser.add_argument('--out_root', type=str, required=True)
-    parser.add_argument('--compression', type=str, default=None)
+    parser = ArgumentParser(description="Convert binary dataset into MDS format")
+    parser.add_argument("--src_root", type=str, required=True)
+    parser.add_argument("--out_root", type=str, required=True)
+    parser.add_argument("--bos_id", type=int, required=True)
+    parser.add_argument("--eod_id", type=int, required=True)
 
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument(
-        '--concat_tokens',
-        type=int,
-        help='Convert text to tokens and concatenate up to this many tokens')
-    parser.add_argument('--split', type=str, default='train')
-
-    parser.add_argument('--no_wrap', default=False, action='store_true')
+    parser.add_argument("--token_concat_len", type=int, default=2048, help="Concatenate up to this many tokens")
+    parser.add_argument("--split", type=str, default="train")
+    parser.add_argument("--no_wrap", default=False, action="store_true")
+    parser.add_argument("--compression", type=str, default=None)
 
     parsed = parser.parse_args()
 
-    if os.path.isdir(parsed.out_root) and len(
-            set(os.listdir(parsed.out_root)).intersection(set(
-                parsed.split))) > 0:
+    if os.path.exists(f"{parsed.out_root}/{parsed.split}"):
         raise ValueError(
-            f'--out_root={parsed.out_root} contains {os.listdir(parsed.out_root)} which cannot overlap with the requested splits {parsed.splits}.'
+            f"Remove {parsed.split} from {parsed.out_root} before."
         )
 
     return parsed
 
 
+def numeric_key(s: str, num_numeric_fields: int=10):
+    m = re.fullmatch("([^0-9]*)([0-9]*)" * num_numeric_fields, s)
+    return [int(f) if _ % 2 else f for _, f in enumerate(m.groups()) if _ == 0 or f]
+
+
+def load_bin_dataset(src_root: str) -> Iterable[array]:
+    def _process(path, fin):
+        print(f"processing", path, end=" ", flush=True)
+        for _ in range(0x7fffffff):
+            try:
+                buf = array("I")
+                buf.fromfile(fin, 1)
+                length = buf[0]
+                buf.fromfile(fin, length)
+                if _ % 10000 == 0:
+                    print(".", end="", flush=True)
+                yield buf
+            except EOFError:
+                break
+        print()
+
+    files = sorted(os.listdir(src_root), key=numeric_key)
+    for file in files:
+        path = f"{src_root}/{file}".replace("\\", "/").replace("//", "/")
+        if os.path.isdir(path):
+            load_bin_dataset(path)
+        elif path.endswith(".bin.gz") or path.endswith(".bin.gzip"):
+            with gzip.open(path, "rb") as fin:
+                for _ in _process(path, fin):
+                    yield _
+        elif path.endswith(".bin"):
+            with gzip.open(path, "rb") as fin:
+                for _ in _process(path, fin):
+                    yield _
+        else:
+            print(f"  skip", path)
+
+
 class ConcatTokenIdsDataset(IterableDataset):
-    """An IterableDataset that returns token samples for MDSWriter.
-
-    Returns dicts of {'tokens': bytes}
-    """
-
     def __init__(
         self,
-        bin_dataset: Iterable[array],
-        max_length: int,
+        src_root: str,
+        bos_id: int,
+        eod_id: int,
+        token_concat_len: int,
         no_wrap: bool,
     ):
-        self.bin_dataset = bin_dataset
-        self.max_length = max_length
+        self.src_root = src_root
+        self.bos_id = bos_id
+        self.eod_id = eod_id
+        self.token_concat_len = token_concat_len
         self.should_wrap = not no_wrap
 
     def __iter__(self) -> Iterable[Dict[str, bytes]]:
         buffer = array("I")
-        for sample in self.bin_dataset:
-            buffer += sample
-            while len(buffer) >= self.max_length:
-                concat_sample = buffer[:self.max_length]
-                buffer = buffer[self.max_length:] if self.should_wrap else array("I")
+        for sample in load_bin_dataset(self.src_root):
+            buffer.append(self.bos_id)
+            buffer.extend(sample)
+            buffer.append(self.eod_id)
+            while len(buffer) >= self.token_concat_len:
+                concat_sample = buffer[:self.token_concat_len]
+                buffer = buffer[self.token_concat_len:] if self.should_wrap else array("I")
                 yield {
-                    # convert to bytes to store in MDS binary format
-                    'tokens': concat_sample.tobytes()
+                    "tokens": concat_sample.tobytes()
                 }
 
 
-def load_bin_dataset(path: str) -> Iterable[array]:
-    files = os.listdir(path)
-    for file in files:
-        with gzip.open(file, "rb") as fin:
-            buf = array("I")
-            buf.fromfile(fin, 1)
-            length = buf[0]
-            buf.fromfile(fin, length)
-            yield buf
-
-
-def build_bin_dataset(
-    path: str,
-    split: str,
-    max_length: Optional[int] = None,
-    no_wrap: bool = False,
-) -> IterableDataset:
-    """Build an IterableDataset over the HF C4 or pile source data.
-
-    Args:
-        path (str): path to Dataset dir or file
-        split (str): Split name.
-        max_length (int): The length of concatenated tokens
-        no_wrap (bool): if concatenating, whether to wrap text across `max_length` boundaries
-
-    Returns:
-        An IterableDataset.
-    """
-    if max_length is None:
-        raise ValueError(f'max_length must be set.')
-
-    bin_dataset = load_bin_dataset(path)
-    return ConcatTokenIdsDataset(
-        bin_dataset=bin_dataset,
-        max_length=max_length,
-        no_wrap=no_wrap,
-    )
-
-
 def main(args: Namespace) -> None:
-    """Main: create C4/pile streaming dataset.
-
-    Args:
-        args (Namespace): Commandline arguments.
-    """
-    columns = {'tokens': 'bytes'}
-    hf_split = args.split
-    folder_split = args.split
-
-    # Get samples
-    dataset = build_bin_dataset(path=args.path,
-                               split=hf_split,
-                               max_length=args.concat_tokens,
-                               no_wrap=args.no_wrap)
-
-    print('here')
-
-    # Write samples
-    print(f'Converting to MDS format...')
-    print(
-        f'Note that the progress bar is based on the dataset length before tokenization.'
+    dataset = ConcatTokenIdsDataset(
+        src_root=args.src_root,
+        bos_id=args.bos_id,
+        eod_id=args.eod_id,
+        token_concat_len=args.token_concat_len,
+        no_wrap=args.no_wrap,
     )
-    print(f'It will finish at a value below 100% if tokenizing')
-    with MDSWriter(columns=columns,
-                   out=os.path.join(args.out_root, folder_split),
+
+    print(f"Converting to MDS format...")
+    with MDSWriter(columns={"tokens": "bytes"},
+                   out=os.path.join(args.out_root, args.split),
                    compression=args.compression) as out:
-        for sample in tqdm(dataset, desc=folder_split):
+        for sample in dataset:
             out.write(sample)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(parse_args())
