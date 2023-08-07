@@ -45,6 +45,7 @@ def load_bin_dataset(src_root: str):
                 buf = array("I")
                 buf.fromfile(fin, 1)
                 length = buf[0]
+                del buf[0]
                 buf.fromfile(fin, length)
                 if num_docs % 10000 == 0:
                     print(".", end="", flush=True)
