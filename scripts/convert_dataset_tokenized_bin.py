@@ -13,7 +13,6 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="Convert binary dataset into MDS format")
     parser.add_argument("--src_root", type=str, required=True)
     parser.add_argument("--out_root", type=str, required=True)
-    parser.add_argument("--bos_id", type=int, required=True)
     parser.add_argument("--eod_id", type=int, required=True)
 
     parser.add_argument("--token_concat_len", type=int, default=2048, help="Concatenate up to this many tokens")
@@ -37,7 +36,7 @@ def numeric_key(s: str, num_numeric_fields: int=10):
 
 
 def load_bin_dataset(src_root: str) -> Iterable[array]:
-    def _process(path, fin):
+    def _process(path: str, fin: file):
         print(f"processing", path, end=" ", flush=True)
         for _ in range(0x7fffffff):
             try:
@@ -73,13 +72,11 @@ class ConcatTokenIdsDataset(IterableDataset):
     def __init__(
         self,
         src_root: str,
-        bos_id: int,
         eod_id: int,
         token_concat_len: int,
         no_wrap: bool,
     ):
         self.src_root = src_root
-        self.bos_id = bos_id
         self.eod_id = eod_id
         self.token_concat_len = token_concat_len
         self.should_wrap = not no_wrap
@@ -87,7 +84,6 @@ class ConcatTokenIdsDataset(IterableDataset):
     def __iter__(self) -> Iterable[Dict[str, bytes]]:
         buffer = array("I")
         for sample in load_bin_dataset(self.src_root):
-            buffer.append(self.bos_id)
             buffer.extend(sample)
             buffer.append(self.eod_id)
             while len(buffer) >= self.token_concat_len:
@@ -101,7 +97,6 @@ class ConcatTokenIdsDataset(IterableDataset):
 def main(args: Namespace) -> None:
     dataset = ConcatTokenIdsDataset(
         src_root=args.src_root,
-        bos_id=args.bos_id,
         eod_id=args.eod_id,
         token_concat_len=args.token_concat_len,
         no_wrap=args.no_wrap,
