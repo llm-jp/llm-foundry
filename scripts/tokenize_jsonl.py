@@ -19,5 +19,4 @@ def tokenize_jsonl(tokenizer, fin, fout, input_field="text"):
 
 if __name__ == "__main__":
     tokenizer = SentencePieceProcessor(model_file=sys.argv[1])
-    with gzip.open(sys.argv[2], "wb") as fout:
-        tokenize_jsonl(tokenizer, sys.stdin, fout)
+    tokenize_jsonl(tokenizer, sys.stdin, sys.stdout.buffer)
