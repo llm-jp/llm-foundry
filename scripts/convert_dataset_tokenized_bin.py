@@ -3,7 +3,7 @@ from argparse import ArgumentParser, Namespace
 import gzip
 import os
 import re
-from typing import Dict, Iterable
+from typing import BinaryIO, Dict, Iterable
 
 from streaming import MDSWriter
 from torch.utils.data import IterableDataset
@@ -35,25 +35,35 @@ def numeric_key(s: str, num_numeric_fields: int=10):
     return [int(f) if _ % 2 else f for _, f in enumerate(m.groups()) if _ == 0 or f]
 
 
-def load_bin_dataset(src_root: str) -> Iterable[array]:
-    def _process(path: str, fin: file):
-        print(f"processing", path, end=" ", flush=True)
-        for _ in range(0x7fffffff):
+def load_bin_dataset(src_root: str):
+    def _process(path: str, fin: BinaryIO):
+        num_docs = 0
+        num_tokens = 0
+        print(f"processing", path, end="\t", flush=True)
+        while True:
             try:
                 buf = array("I")
                 buf.fromfile(fin, 1)
                 length = buf[0]
                 buf.fromfile(fin, length)
-                if _ % 10000 == 0:
+                if num_docs % 10000 == 0:
                     print(".", end="", flush=True)
+                num_docs += 1
+                num_tokens += length
                 yield buf
             except EOFError:
                 break
         print()
+        print("stats:", path, f"{num_docs} docs", f"{num_tokens} tokens", sep="\t")
 
-    files = sorted(os.listdir(src_root), key=numeric_key)
+    if os.path.isdir(src_root):
+        files = sorted(os.listdir(src_root), key=numeric_key)
+        src_root += "/"
+    else:
+        files = [src_root]
+        src_root = ""
     for file in files:
-        path = f"{src_root}/{file}".replace("\\", "/").replace("//", "/")
+        path = f"{src_root}{file}".replace("\\", "/").replace("//", "/")
         if os.path.isdir(path):
             load_bin_dataset(path)
         elif path.endswith(".bin.gz") or path.endswith(".bin.gzip"):
