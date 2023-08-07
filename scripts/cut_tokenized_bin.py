@@ -27,19 +27,19 @@ def load_bin_dataset(path, fin, max_docs, max_tokens):
 
 
 def main() -> None:
-    path = sys.argv[1]
-    max_docs = int(sys.argv[2])
-    max_tokens = int(sys.argv[3])
-    if path.endswith(".bin.gz") or path.endswith(".bin.gzip"):
-        with gzip.open(path, "rb") as fin:
-            for _ in load_bin_dataset(path, fin, max_docs, max_tokens):
-                _.tofile(sys.stdout.buffer)
-    elif path.endswith(".bin"):
-        with open(path, "rb") as fin:
-            for _ in load_bin_dataset(path, fin, max_docs, max_tokens):
-                _.tofile(sys.stdout.buffer)
-    else:
-        assert False, f"bad path: {path}"
+    max_docs = int(sys.argv[1])
+    max_tokens = int(sys.argv[2])
+    for path in sys.argv[3:]:
+        if path.endswith(".bin.gz") or path.endswith(".bin.gzip"):
+            with gzip.open(path, "rb") as fin:
+                for _ in load_bin_dataset(path, fin, max_docs, max_tokens):
+                    _.tofile(sys.stdout.buffer)
+        elif path.endswith(".bin"):
+            with open(path, "rb") as fin:
+                for _ in load_bin_dataset(path, fin, max_docs, max_tokens):
+                    _.tofile(sys.stdout.buffer)
+        else:
+            assert False, f"bad path: {path}"
 
 
 if __name__ == "__main__":
