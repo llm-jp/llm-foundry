@@ -3,7 +3,7 @@ import gzip
 import sys
 
 
-def load_bin_dataset(fin, max_docs, max_tokens):
+def load_bin_dataset(path, fin, max_docs, max_tokens):
     num_docs = 0
     num_tokens = 0
     while True:
@@ -23,6 +23,7 @@ def load_bin_dataset(fin, max_docs, max_tokens):
                 break
         except EOFError:
             break
+    print("stats:", path, f"{num_docs} docs", f"{num_tokens} tokens", sep="\t")
 
 
 def main() -> None:
@@ -31,11 +32,11 @@ def main() -> None:
     max_tokens = int(sys.argv[3])
     if path.endswith(".bin.gz") or path.endswith(".bin.gzip"):
         with gzip.open(path, "rb") as fin:
-            for _ in load_bin_dataset(fin, max_docs, max_tokens):
+            for _ in load_bin_dataset(path, fin, max_docs, max_tokens):
                 _.tofile(sys.stdout.buffer)
     elif path.endswith(".bin"):
         with open(path, "rb") as fin:
-            for _ in load_bin_dataset(fin, max_docs, max_tokens):
+            for _ in load_bin_dataset(path, fin, max_docs, max_tokens):
                 _.tofile(sys.stdout.buffer)
     else:
         assert False, f"bad path: {path}"
