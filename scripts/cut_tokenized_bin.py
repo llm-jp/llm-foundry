@@ -23,7 +23,7 @@ def load_bin_dataset(path, fin, max_docs, max_tokens):
                 break
         except EOFError:
             break
-    print("stats:", path, f"{num_docs} docs", f"{num_tokens} tokens", sep="\t")
+    print("stats:", path, f"{num_docs} docs", f"{num_tokens} tokens", sep="\t", file=sys.stderr)
 
 
 def main() -> None:
