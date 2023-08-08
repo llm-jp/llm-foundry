@@ -39,7 +39,7 @@ def load_bin_dataset(src_root: str):
     def _process(path: str, fin: BinaryIO):
         num_docs = 0
         num_tokens = 0
-        print(f"processing", path, end="\t", flush=True)
+        print(f"processing", path, end=" ", flush=True)
         while True:
             try:
                 buf = array("i")
@@ -95,13 +95,13 @@ class ConcatTokenIdsDataset(IterableDataset):
         self.should_wrap = not no_wrap
 
     def __iter__(self) -> Iterable[Dict[str, bytes]]:
-        buffer = array("I")
+        buffer = array("i")
         for sample in load_bin_dataset(self.src_root):
             buffer.extend(sample)
             buffer.append(self.eod_id)
             while len(buffer) >= self.token_concat_len:
                 concat_sample = buffer[:self.token_concat_len]
-                buffer = buffer[self.token_concat_len:] if self.should_wrap else array("I")
+                buffer = buffer[self.token_concat_len:] if self.should_wrap else array("i")
                 yield {
                     "tokens": concat_sample.tobytes()
                 }

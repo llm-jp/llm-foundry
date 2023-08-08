@@ -1,5 +1,4 @@
 from array import array
-import gzip
 import json
 import sys
 
