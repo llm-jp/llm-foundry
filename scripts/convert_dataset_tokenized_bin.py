@@ -3,7 +3,8 @@ from argparse import ArgumentParser, Namespace
 import gzip
 import os
 import re
-from typing import BinaryIO, Dict, Iterable
+import sys
+from typing import BinaryIO, Dict, Iterable, Optional
 
 from streaming import MDSWriter
 from torch.utils.data import IterableDataset
@@ -11,7 +12,7 @@ from torch.utils.data import IterableDataset
 
 def parse_args() -> Namespace:
     parser = ArgumentParser(description="Convert binary dataset into MDS format")
-    parser.add_argument("--src_root", type=str, required=True)
+    parser.add_argument("--src_root", type=Optional[str], default=None)
     parser.add_argument("--out_root", type=str, required=True)
     parser.add_argument("--eod_id", type=int, required=True)
 
@@ -59,26 +60,30 @@ def load_bin_dataset(src_root: str):
         print()
         print("stats:", path, f"{num_docs} docs", f"{num_tokens} tokens", sep="\t")
 
-    if os.path.isdir(src_root):
-        files = sorted(os.listdir(src_root), key=numeric_key)
-        src_root += "/"
-    else:
-        files = [src_root]
-        src_root = ""
-    for file in files:
-        path = f"{src_root}{file}".replace("\\", "/").replace("//", "/")
-        if os.path.isdir(path):
-            load_bin_dataset(path)
-        elif path.endswith(".bin.gz") or path.endswith(".bin.gzip"):
-            with gzip.open(path, "rb") as fin:
-                for _ in _process(path, fin):
-                    yield _
-        elif path.endswith(".bin"):
-            with gzip.open(path, "rb") as fin:
-                for _ in _process(path, fin):
-                    yield _
+    if src_root:
+        if os.path.isdir(src_root):
+            files = sorted(os.listdir(src_root), key=numeric_key)
+            src_root += "/"
         else:
-            print(f"  skip", path)
+            files = [src_root]
+            src_root = ""
+        for file in files:
+            path = f"{src_root}{file}".replace("\\", "/").replace("//", "/")
+            if os.path.isdir(path):
+                load_bin_dataset(path)
+            elif path.endswith(".bin.gz") or path.endswith(".bin.gzip"):
+                with gzip.open(path, "rb") as fin:
+                    for _ in _process(path, fin):
+                        yield _
+            elif path.endswith(".bin"):
+                with open(path, "rb") as fin:
+                    for _ in _process(path, fin):
+                        yield _
+            else:
+                print(f"  skip", path)
+    else:
+        for _ in _process("[sys.stdin]", sys.stdin.buffer):
+            yield _
 
 
 class ConcatTokenIdsDataset(IterableDataset):
