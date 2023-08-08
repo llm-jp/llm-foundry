@@ -11,7 +11,9 @@ def load_bin_dataset(path, fin, max_docs, max_tokens):
             buf = array("I")
             buf.fromfile(fin, 1)
             length = buf[0]
+            assert length > 0, f"{length=}, {num_docs=}, {num_tokens=}"
             buf.fromfile(fin, length)
+            assert len(buf) - 1 == length, f"{length=}, len(buf)={len(buf) - 1}, {num_docs=}, {num_tokens=}"
             num_docs += 1
             if max_docs > 0 and num_docs == max_docs:
                 break

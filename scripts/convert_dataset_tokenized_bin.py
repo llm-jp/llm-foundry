@@ -45,8 +45,10 @@ def load_bin_dataset(src_root: str):
                 buf = array("I")
                 buf.fromfile(fin, 1)
                 length = buf[0]
+                assert length > 0, f"{length=}, {num_docs=}, {num_tokens=}"
                 del buf[0]
                 buf.fromfile(fin, length)
+                assert len(buf) == length, f"{length=}, len(buf)={len(buf)}, {num_docs=}, {num_tokens=}"
                 if num_docs % 10000 == 0:
                     print(".", end="", flush=True)
                 num_docs += 1
