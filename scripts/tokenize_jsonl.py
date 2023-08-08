@@ -11,7 +11,7 @@ def tokenize_jsonl(tokenizer, fin, fout, input_field="text"):
         r = json.loads(line)
         text = r[input_field]
         token_ids = tokenizer.encode(text)
-        buf = array("I")
+        buf = array("i")
         buf.append(len(token_ids))
         buf.extend(token_ids)
         buf.tofile(fout)

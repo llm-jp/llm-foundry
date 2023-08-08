@@ -42,7 +42,7 @@ def load_bin_dataset(src_root: str):
         print(f"processing", path, end="\t", flush=True)
         while True:
             try:
-                buf = array("I")
+                buf = array("i")
                 buf.fromfile(fin, 1)
                 length = buf[0]
                 assert length > 0, f"{length=}, {num_docs=}, {num_tokens=}"
