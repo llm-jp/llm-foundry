@@ -1,13 +1,15 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
-srcdir=/data/data_v001_20230706
-dstdir=./tokenized/$1
+spmodel=$1
+dstdir=$2
 mkdir -p $dstdir
-for dataset in code_stack ja_wiki en_wiki ja_cc en_pile
+for jsonl_path in ${@:3:($#-2)}
 do
-  echo `date "+%Y/%m/%d %H:%M:%S"` "$srcdir/$dataset.tar.gz -> $dstdir/$dataset.bin.gz started" && \
-  pigz -d -c $srcdir/$dataset.tar.gz | tar xf - -O | parallel --pipe -j 16 --round -u --blocksize 15000000 python tokenize_jsonl.py $1 | pigz -c > $dstdir/$dataset.bin.gz && \
-  echo `date "+%Y/%m/%d %H:%M:%S"` "$srcdir/$dataset.tar.gz -> $dstdir/$dataset.bin.gz done" &
+  python tokenize_jsonl.py $spmodel $jsonl_path 2>> tokenize_jsonl.log | pigz -c > $dstdir/`basename -s .jsonl $jsonl_path`.bin.gz &
+done
+for ((i=0; i<(($# - 2 - `nproc` / 5)); i++))
+do
+  wait -n
 done
