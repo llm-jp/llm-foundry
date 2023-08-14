@@ -47,7 +47,7 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,nlp,wandb]>=0.15.0,<0.16',
+    'mosaicml[libcloud,nlp,wandb,mlflow]>=0.15.0,<0.16',
     'accelerate>=0.20,<0.21',  # for HF inference `device_map`
     'mosaicml-streaming>=0.5.2,<0.6',
     'torch>=1.13.1,<=2.0.1',
@@ -74,6 +74,7 @@ extra_deps['dev'] = [
     'pyright==1.1.256',
     'toml>=0.10.2,<0.11',
     'packaging>=21,<23',
+    'hf_transfer==0.1.3',
 ]
 
 extra_deps['tensorboard'] = [
