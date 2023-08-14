@@ -4,15 +4,16 @@ import gzip
 import os
 import re
 import sys
-from typing import BinaryIO, Dict, Iterable, Optional
+from typing import BinaryIO, Dict, Iterable
 
+import numpy as np
 from streaming import MDSWriter
 from torch.utils.data import IterableDataset
 
 
 def parse_args() -> Namespace:
     parser = ArgumentParser(description="Convert binary dataset into MDS format")
-    parser.add_argument("--src_root", type=Optional[str], default=None)
+    parser.add_argument("--src_root", type=str, default=None)
     parser.add_argument("--out_root", type=str, required=True)
     parser.add_argument("--eod_id", type=int, required=True)
 
@@ -108,7 +109,7 @@ class ConcatTokenIdsDataset(IterableDataset):
                 concat_sample = buffer[:self.token_concat_len]
                 buffer = buffer[self.token_concat_len:] if self.should_wrap else array("i")
                 yield {
-                    "tokens": concat_sample.tobytes()
+                    "tokens": np.asarray(concat_sample, dtype=np.int64).tobytes()
                 }
 
 
