@@ -1,0 +1,5 @@
+/model/mosaicml/llm-foundry/scripts/bin_data/code10k_en20k_ja30k.ver2.1/validation/code_stack/validation_0.bin.gz bin_data/v1.0.1/validation/code_stack_validation_0.bin.gz
+/model/mosaicml/llm-foundry/scripts/bin_data/code10k_en20k_ja30k.ver2.1/validation/en_pile/validation_0.bin.gz bin_data/v1.0.1/validation/en_pile_validation_0.bin.gz
+/model/mosaicml/llm-foundry/scripts/bin_data/code10k_en20k_ja30k.ver2.1/validation/en_wiki/validation_0.bin.gz bin_data/v1.0.1/validation/en_wiki_validation_0.bin.gz
+/model/mosaicml/llm-foundry/scripts/bin_data/code10k_en20k_ja30k.ver2.1/validation/ja_cc/validation_0.bin.gz bin_data/v1.0.1/validation/ja_cc_validation_0.bin.gz
+/model/mosaicml/llm-foundry/scripts/bin_data/code10k_en20k_ja30k.ver2.1/validation/ja_wiki/validation_0.bin.gz bin_data/v1.0.1/validation/ja_wiki_validation_0.bin.gz
