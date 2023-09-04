@@ -7,6 +7,7 @@
 
 import json
 import os
+import shutil
 import tempfile
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
@@ -158,8 +159,9 @@ def write_huggingface_pretrained_from_composer_checkpoint(
         checkpoint_path: Union[Path, str],
         output_path: Union[Path, str],
         output_precision: str = 'fp32',
-        local_checkpoint_save_location: Optional[Union[Path,
-                                                       str]] = None) -> None:
+        local_checkpoint_save_location: Optional[Union[Path, str]] = None,
+        hf_tokenizer_path: Optional[Union[Path, str]] = None,
+    ) -> None:
     """Convert a Composer checkpoint to a pretrained HF checkpoint folder.
 
     Write a ``config.json`` and ``pytorch_model.bin``, like
@@ -243,13 +245,19 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     # Extract and save the HF tokenizer
     print('#' * 30)
     print('Saving HF Tokenizer...')
-    hf_tokenizer = get_hf_tokenizer_from_composer_state_dict(
-        composer_state_dict)
-    if hf_tokenizer is not None:
-        hf_tokenizer.save_pretrained(output_path)
+    if hf_tokenizer_path:
+        for _ in os.listdir(hf_tokenizer_path):
+            shutil.copy(os.path.join(hf_tokenizer_path, _), os.path.join(output_path, _))
+        hf_tokenizer = AutoTokenizer.from_pretrained(hf_tokenizer_path, use_fast=False)
         print(hf_tokenizer)
     else:
-        print('Warning! No HF Tokenizer found!')
+        hf_tokenizer = get_hf_tokenizer_from_composer_state_dict(
+            composer_state_dict)
+        if hf_tokenizer is not None:
+            hf_tokenizer.save_pretrained(output_path)
+            print(hf_tokenizer)
+        else:
+            print('Warning! No HF Tokenizer found!')
 
     # Extract the HF model weights
     print('#' * 30)
@@ -292,6 +300,7 @@ def parse_args() -> Namespace:
                         default='fp32')
     parser.add_argument('--hf_repo_for_upload', type=str, default=None)
     parser.add_argument('--test_uploaded_model', action='store_true')
+    parser.add_argument('--hf_tokenizer_path', type=str, default=None)
 
     return parser.parse_args()
 
@@ -303,7 +312,9 @@ def convert_composer_to_hf(args: Namespace) -> None:
         checkpoint_path=args.composer_path,
         output_path=local_folder_path,
         output_precision=args.output_precision,
-        local_checkpoint_save_location=args.local_checkpoint_save_location)
+        local_checkpoint_save_location=args.local_checkpoint_save_location,
+        hf_tokenizer_path=args.hf_tokenizer_path,
+    )
 
     dtype = {
         'fp32': torch.float32,
@@ -329,7 +340,7 @@ def convert_composer_to_hf(args: Namespace) -> None:
     loaded_hf_model.save_pretrained(local_folder_path)
 
     print(f'Loading tokenizer from {local_folder_path}')
-    tokenizer = transformers.AutoTokenizer.from_pretrained(local_folder_path)
+    tokenizer = transformers.AutoTokenizer.from_pretrained(local_folder_path, use_fast=False)
     tokenizer.save_pretrained(local_folder_path)
 
     print('Editing files for HF compatibility...')
